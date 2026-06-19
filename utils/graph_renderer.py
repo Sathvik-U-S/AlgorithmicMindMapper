@@ -2,20 +2,14 @@ import streamlit as st
 from graphviz import Digraph
 
 def inject_theme_sync_js():
-    """Invisible JS using st.html. Fixed for native DOM injection (removed window.parent)."""
+    """Unbreakable JS interval that survives Streamlit re-runs and instantly catches manual theme toggles."""
     js_code = """
     <script>
         (function() {
-            // Prevent multiple intervals from spawning on reruns
-            if (window._themeSyncRunning) return;
-            window._themeSyncRunning = true;
-            
             function syncGraphvizColors() {
                 try {
-                    // st.html injects directly into the main DOM, so we use 'document' natively.
-                    const appDiv = document.querySelector('.stApp');
-                    if (!appDiv) return;
-                    
+                    // Accurately find Streamlit's main background container
+                    const appDiv = document.querySelector('[data-testid="stAppViewContainer"]') || document.querySelector('.stApp') || document.body;
                     const bgColor = window.getComputedStyle(appDiv).backgroundColor;
                     const rgb = bgColor.match(/\\d+/g);
                     if (!rgb) return;
@@ -32,31 +26,35 @@ def inject_theme_sync_js():
                     
                     if (isLight) {
                         styleEl.innerHTML = `
+                            /* Graphviz Colors for Light Mode */
                             .stGraphVizChart svg path[fill="#161B22" i], 
-                            .stGraphVizChart svg polygon[fill="#161B22" i] { fill: #F0F2F6 !important; }
+                            .stGraphVizChart svg polygon[fill="#161B22" i] { fill: #FFFFFF !important; }
                             
                             .stGraphVizChart svg text { fill: #31333F !important; font-weight: bold !important; }
                             
                             .stGraphVizChart svg path[stroke="#00FFAA" i], 
-                            .stGraphVizChart svg polygon[stroke="#00FFAA" i] { stroke: #31333F !important; }
-                            .stGraphVizChart svg polygon[fill="#00FFAA" i] { fill: #31333F !important; }
+                            .stGraphVizChart svg polygon[stroke="#00FFAA" i] { stroke: #FF007F !important; }
+                            .stGraphVizChart svg polygon[fill="#00FFAA" i] { fill: #FF007F !important; }
                             
                             .stGraphVizChart svg path[stroke="#0099FF" i], 
-                            .stGraphVizChart svg polygon[stroke="#0099FF" i] { stroke: #7A7A7A !important; }
-                            .stGraphVizChart svg polygon[fill="#0099FF" i] { fill: #7A7A7A !important; }
+                            .stGraphVizChart svg polygon[stroke="#0099FF" i] { stroke: #0099FF !important; }
+                            .stGraphVizChart svg polygon[fill="#0099FF" i] { fill: #0099FF !important; }
                             
-                            .cyber-box { background-color: #F0F2F6 !important; border-color: #FF007F !important; }
+                            /* Recursive Frame Inspector Colors for Light Mode */
+                            .cyber-box { background-color: #FFFFFF !important; border-color: #FF007F !important; box-shadow: 0 2px 6px rgba(0,0,0,0.05) !important; }
                             .cyber-title { color: #31333F !important; }
-                            .cyber-text { color: #7A7A7A !important; }
+                            .cyber-text { color: #555555 !important; }
                         `;
                     } else {
-                        styleEl.innerHTML = '';
+                        styleEl.innerHTML = ''; // Revert to pure Dark Mode
                     }
                 } catch (e) {}
             }
-            // Run once immediately, then check every 500ms for instant toggle response
-            syncGraphvizColors();
-            setInterval(syncGraphvizColors, 500);
+            
+            // CRITICAL FIX: Kill old ghost-timers before starting a new one on Streamlit re-run
+            if (window.themeSyncTimer) clearInterval(window.themeSyncTimer);
+            window.themeSyncTimer = setInterval(syncGraphvizColors, 200);
+            syncGraphvizColors(); // Execute immediately
         })();
     </script>
     """
