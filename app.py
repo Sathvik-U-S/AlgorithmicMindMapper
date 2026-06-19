@@ -46,8 +46,8 @@ st.markdown("---")
 st.subheader(":material/bookmark: Your Persistent Access Link")
 st.info("Bookmark this exact URL. It will instantly restore your profile, API keys, and your last active execution trace across any device without a login portal:", icon=":material/info:")
 
-# Update this URL based on your deployed domain later!
-current_url = "http://localhost:8501" 
+# Production URL matched to your deployed application space
+current_url = "https://algorithmicmindmappergit-h6bhwlhiqz5frnpksslcea.streamlit.app" 
 personal_link = f"{current_url}/?user_id={st.session_state.user_id}"
 
 st.code(personal_link, language="text")
