@@ -35,11 +35,11 @@ if "current_analysis" not in st.session_state:
         st.session_state.current_algo = ""
         st.session_state.qna = []
 
-st.markdown("### :material/account_tree: Algorithmic Mind-Mapper Workspace")
+st.markdown("### :material/account_tree: Logic Study Room")
 c1, c2 = st.columns([3, 1])
-algo_name = c1.text_input("Code Context / Algorithm Name", value=st.session_state.get("current_algo", ""), placeholder="E.g., 'Dijkstra's Algorithm' OR paste your raw Python function block here...", label_visibility="collapsed")
+algo_name = c1.text_input("Code Context / Algorithm Name", value=st.session_state.get("current_algo", ""), placeholder="E.g., 'Dijkstra's Algorithm' OR paste your raw Python function block here to visualize...", label_visibility="collapsed")
 
-if c2.button("Compile Matrix Blueprint", type="primary", width='stretch', icon=":material/play_arrow:"):
+if c2.button("Deploy Mind-Map", type="secondary", width='stretch', icon=":material/play_arrow:"):
     if algo_name:
         with st.spinner("Synthesizing architecture, mapping execution trace, and evaluating trade-offs..."):
             try:
@@ -56,11 +56,11 @@ if st.session_state.current_analysis:
     
     col_viz, col_text = st.columns([1.2, 1])
     with col_viz:
-        st.markdown("#### :material/schema: Architectural Flowchart Blueprint")
+        st.markdown("#### :material/schema: Logic Pathway")
         with st.container(border=True):
             dot_flow = render_graphviz(data.get("graphviz_flowchart"), "#00FFAA", "TD")
     with col_text:
-        st.markdown("#### :material/description: Core Logic Synthesis")
+        st.markdown("#### :material/description: How it Works")
         st.write(data.get("explanation", ""))
 
     st.divider()
@@ -68,11 +68,11 @@ if st.session_state.current_analysis:
     st.markdown("### :material/memory: Runtime Data State & Call Stack Tracker")
     c_trace, c_stack = st.columns([1.2, 1])
     with c_trace:
-        st.markdown("**Visual Execution Memory Trace**")
+        st.markdown("**Execution Story**")
         with st.container(border=True):
             dot_trace = render_graphviz(data.get("graphviz_trace"), "#0099FF", "TD")
     
-    st.markdown("**Execution Trace Timeline**")
+    st.markdown("**Execution Trace**")
     st.caption(":material/swipe_right: Swipe left or right inside the box below to view the complete table.")
     
     # Stable Implementation of Horizontal Scroll Table
@@ -80,7 +80,7 @@ if st.session_state.current_analysis:
     st.markdown(f'<div class="scrollable-table-window">\n\n{table_md}\n\n</div>', unsafe_allow_html=True)
     
     with c_stack:
-        st.markdown("**Recursive Frame Inspector**")
+        st.markdown("**Call Stack**")
         call_stack = data.get("call_stack", [])
         if call_stack:
             st.caption(":material/linear_scale: **Interactive Timeline:** Drag the slider below to step forward and backward through the frames.")
@@ -117,6 +117,7 @@ if st.session_state.current_analysis:
     fig_bar = None
     st.markdown("##### Space-Time Structural Profile")
     if tradeoffs:
+        st.caption(":material/touch_app: *Tip: Double-tap or double-click anywhere on the chart to reset the zoom/view.*")
         df_bar = pd.DataFrame({"Metric": list(tradeoffs.keys()), "Score": list(tradeoffs.values())})
         fig_bar = px.bar(df_bar, x="Score", y="Metric", orientation='h', template="plotly_dark", color="Score", color_continuous_scale="Tealgrn")
         fig_bar.update_layout(width=750, height=350, xaxis=dict(range=[0, 10]), margin=dict(l=150, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#E6EDF3", size=13))
@@ -135,7 +136,7 @@ if st.session_state.current_analysis:
     st.markdown(f"**Structural Alternative:** \n\n {data.get('alternative', 'None suggested.')}")
     st.divider()
     
-    st.markdown("#### :material/download: Compile Documentation Artifact")
+    st.markdown("#### :material/download: Download Report")
     st.info("Generate a formatted HTML technical document. Open the downloaded file in your browser and press **Ctrl+P** to convert it into a standardized PDF report.", icon=":material/lightbulb:")
     
     import re
@@ -145,10 +146,10 @@ if st.session_state.current_analysis:
     safe_name = safe_name[:30] if len(safe_name) > 30 else (safe_name or "Algorithm")
     
     report_html = generate_beautiful_report(safe_name, data, dot_flow, dot_trace, fig_bar)
-    st.download_button(label="Download Analytical Report (.html)", data=report_html, file_name=f"{safe_name}_Technical_Report.html", mime="text/html", type="primary", icon=":material/picture_as_pdf:", width='stretch')
+    st.download_button(label="Download Analytical Report (.html)", data=report_html, file_name=f"{safe_name}_Technical_Report.html", mime="text/html", type="secondary", icon=":material/picture_as_pdf:", width='stretch')
     st.divider()
 
-    st.markdown("#### :material/forum: Consult Interactive Tutor")
+    st.markdown("#### :material/forum: Ask Follow Up Questions")
     for msg in st.session_state.qna:
         with st.chat_message(msg["role"]):
             content = msg["content"]
@@ -159,7 +160,7 @@ if st.session_state.current_analysis:
             else:
                 st.write(content)
             
-    q_input = st.chat_input("Request custom sub-graphs, syntax traces, or conceptual explanations...")
+    q_input = st.chat_input("Request custom sub-graphs, syntax traces, or conceptual explanations to AI ...")
     if q_input:
         st.session_state.qna.append({"role": "user", "content": q_input})
         ans_payload = answer_followup(q_input, data.get("explanation", ""), st.session_state.api_key)
