@@ -7,7 +7,7 @@ from utils.graph_renderer import render_graphviz, inject_theme_sync_js
 from utils.report_generator import generate_beautiful_report
 from database import save_user_state, get_user_state
 
-st.set_page_config(page_title="Algorithmic Mind-Mapper", layout="wide")
+st.set_page_config(page_title="DSA Visualizer", layout="wide")
 
 if not st.session_state.get("api_key") or not st.session_state.get("user_id"):
     st.warning("Authentication Required: Please configure your Gemini API Key on the Profile page.", icon=":material/lock:")
@@ -88,10 +88,11 @@ if st.session_state.current_analysis:
                     else:
                         f_name, f_det = str(frame), ""
                     
+                    # Core Fix: Cleaned inline styles so the Neon CSS perfectly styles the boxes!
                     st.markdown(f"""
-                    <div class='cyber-box' style='background-color:#161B22; border:1px solid #ff4b4b; padding:10px; margin-bottom:10px; border-radius:8px; text-align:center;'>
-                        <div class='cyber-title' style='font-family:monospace; color:#E6EDF3; font-weight:bold; font-size: 1.1em;'>{f_name}</div>
-                        <div class='cyber-text' style='font-size:0.9em; color:#8B949E; margin-top:5px;'>{f_det}</div>
+                    <div class='cyber-box' style='padding:12px; margin-bottom:12px; border-radius:8px; text-align:center;'>
+                        <div class='cyber-title' style='font-family:monospace; font-size: 1.1em;'>{f_name}</div>
+                        <div class='cyber-text' style='font-size:0.9em; margin-top:5px;'>{f_det}</div>
                     </div>
                     """, unsafe_allow_html=True)
         else:
@@ -115,6 +116,7 @@ if st.session_state.current_analysis:
             font=dict(color="#E6EDF3", size=13)
         )
         st.plotly_chart(fig_bar, width='stretch')
+        
     st.divider()
     st.markdown(f"**Target Asymptotic Complexity:** \n\n :green[{data.get('primary_complexity', 'O(N)')}]")
     st.divider()

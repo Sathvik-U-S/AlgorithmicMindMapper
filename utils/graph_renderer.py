@@ -3,18 +3,16 @@ import streamlit.components.v1 as components
 from graphviz import Digraph
 
 def inject_theme_sync_js():
-    """Uses the safe, sandboxed components.html iframe to protect the JS timer from Streamlit DOM wipes."""
+    """Invisible JS using the safe components.html iframe to perfectly convert SVG and HTML colors for Light Mode."""
     js_code = """
     <script>
         (function() {
             function syncGraphvizColors() {
                 try {
-                    // Reach up out of the iframe into the parent Streamlit application
                     const parentDoc = window.parent.document;
                     if (!parentDoc) return;
                     
-                    // Locate the main background container
-                    const appDiv = parentDoc.querySelector('[data-testid="stAppViewContainer"]') || parentDoc.querySelector('.stApp') || parentDoc.body;
+                    const appDiv = parentDoc.querySelector('.stApp') || parentDoc.body;
                     if (!appDiv) return;
                     
                     const bgColor = window.parent.getComputedStyle(appDiv).backgroundColor;
@@ -32,9 +30,8 @@ def inject_theme_sync_js():
                     }
                     
                     if (isLight) {
-                        // Light Mode: Apply bright theme colors instantly
                         styleEl.innerHTML = `
-                            /* Graphviz Colors */
+                            /* Flowchart SVG Colors (Light Mode) */
                             .stGraphVizChart svg path[fill="#161B22" i], 
                             .stGraphVizChart svg polygon[fill="#161B22" i] { fill: #F0F2F6 !important; }
                             
@@ -48,25 +45,26 @@ def inject_theme_sync_js():
                             .stGraphVizChart svg polygon[stroke="#0099FF" i] { stroke: #0099FF !important; }
                             .stGraphVizChart svg polygon[fill="#0099FF" i] { fill: #0099FF !important; }
                             
-                            /* Recursive Call Stack UI */
-                            .cyber-box { background-color: #F0F2F6 !important; border-color: #FF007F !important; }
-                            .cyber-title { color: #31333F !important; }
+                            /* Recursive Frame Inspector: Neon Pink Light Mode */
+                            .cyber-box { background-color: #FFFFFF !important; border: 2px solid #FF007F !important; box-shadow: 0 0 10px rgba(255, 0, 127, 0.15) !important; }
+                            .cyber-title { color: #31333F !important; font-weight: 800 !important; }
                             .cyber-text { color: #555555 !important; }
                         `;
                     } else {
-                        // Dark Mode: Clear overrides to restore original Cyber-Dark styling
-                        styleEl.innerHTML = ''; 
+                        styleEl.innerHTML = `
+                            /* Recursive Frame Inspector: Cyber-Dark Neon Blue/Green Theme */
+                            .cyber-box { background-color: #161B22 !important; border: 2px solid #0099FF !important; box-shadow: 0 0 10px rgba(0, 153, 255, 0.2) !important; }
+                            .cyber-title { color: #00FFAA !important; font-weight: 800 !important; }
+                            .cyber-text { color: #E6EDF3 !important; }
+                        `;
                     }
                 } catch (e) {}
             }
-            
-            // Run instantly, then poll every 200ms to catch manual UI toggles flawlessly
             syncGraphvizColors();
-            setInterval(syncGraphvizColors, 200);
+            setInterval(syncGraphvizColors, 500);
         })();
     </script>
     """
-    # Using the safe component wrapper with 0 size so it is invisible
     components.html(js_code, height=0, width=0) 
 
 def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
@@ -95,7 +93,6 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
         elif len(edge) >= 2:
             dot.edge(str(edge[0]), str(edge[1]))
 
-    # Using width='stretch' to prevent deprecation warnings while ensuring full container expansion
     st.graphviz_chart(dot, width='stretch')
     inject_theme_sync_js()
     return dot

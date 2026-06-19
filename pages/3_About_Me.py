@@ -6,7 +6,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- DYNAMIC THEME ENGINE ---
+# --- DYNAMIC THEME ENGINE (Restored your Glass Theme) ---
 st.html("""
 <style>
     .glass {
@@ -19,45 +19,44 @@ st.html("""
         line-height: 1.8;
         transition: all 0.3s ease;
     }
-
     .glass ul { margin: 0; padding-left: 25px; }
     .glass li { margin-bottom: 12px; }
-    .glass li::marker { color: #00FFAA; transition: color 0.3s ease; }
+    .glass li::marker { color: #00FFAA; }
 </style>
 
 <script>
-    function syncPageTheme() {
-        try {
-            const parentDoc = window.parent.document;
-            const appDiv = parentDoc.querySelector('.stApp');
-            if (!appDiv) return;
-            
-            const bgColor = window.parent.getComputedStyle(appDiv).backgroundColor;
-            const rgb = bgColor.match(/\\d+/g);
-            if (!rgb) return;
-            
-            const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
-            const isLight = brightness > 128;
-            
-            let styleEl = parentDoc.getElementById('about-theme-sync-style');
-            if (!styleEl) {
-                styleEl = parentDoc.createElement('style');
-                styleEl.id = 'about-theme-sync-style';
-                parentDoc.head.appendChild(styleEl);
-            }
-            
-            if (isLight) {
-                styleEl.innerHTML = `
-                    .glass { background: #F0F2F6 !important; border-color: #E0E2E6 !important; color: #31333F !important; }
-                    .glass li::marker { color: #FF007F !important; } /* Fun Pink for Light Mode */
-                `;
-            } else {
-                styleEl.innerHTML = '';
-            }
-        } catch (e) {}
-    }
-    syncPageTheme();
-    setInterval(syncPageTheme, 1000);
+    (function() {
+        function syncPageTheme() {
+            try {
+                const appDiv = document.querySelector('.stApp') || document.body;
+                const bgColor = window.getComputedStyle(appDiv).backgroundColor;
+                const rgb = bgColor.match(/\\d+/g);
+                if (!rgb) return;
+                
+                const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
+                const isLight = brightness > 128;
+                
+                let styleEl = document.getElementById('about-theme-sync-style');
+                if (!styleEl) {
+                    styleEl = document.createElement('style');
+                    styleEl.id = 'about-theme-sync-style';
+                    document.head.appendChild(styleEl);
+                }
+                
+                if (isLight) {
+                    styleEl.innerHTML = `
+                        .glass { background: #F0F2F6 !important; border-color: #D0D2D6 !important; color: #31333F !important; }
+                        .glass * { color: #31333F !important; }
+                        .glass li::marker { color: #FF007F !important; }
+                    `;
+                } else {
+                    styleEl.innerHTML = '';
+                }
+            } catch (e) {}
+        }
+        setInterval(syncPageTheme, 500);
+        syncPageTheme();
+    })();
 </script>
 """)
 
@@ -73,6 +72,7 @@ with col2:
     st.markdown("## :material/person: Sathvik U S")
     st.markdown("### AIML Student | BS Data Science @ IIT Madras")
 
+    # Restored your exact text and list
     st.markdown("""
     <div class='glass'>
         <ul>
@@ -104,8 +104,4 @@ with colB:
     )
 
 st.divider()
-
-st.info(
-    "Open to AI, ML, Data Science, and Full-Stack internship opportunities and technical project collaborations.",
-    icon=":material/lightbulb:"
-)
+st.info("Open to AI, ML, Data Science, and Full-Stack internship opportunities and technical project collaborations.", icon=":material/lightbulb:")
