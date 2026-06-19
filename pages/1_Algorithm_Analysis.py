@@ -11,7 +11,7 @@ st.set_page_config(page_title="DSA Visualizer", layout="wide")
 
 st.html("""
 <style>
-body, .stApp { overflow-x: hidden !important; }
+body, .stApp { overflow-x: hidden !important; width: 100vw; max-width: 100vw; }
 .scrollable-table-window {
     width: 100%;
     overflow-x: auto;
@@ -19,6 +19,7 @@ body, .stApp { overflow-x: hidden !important; }
     border: 1px solid rgba(128, 128, 128, 0.2);
     border-radius: 8px;
     padding: 10px;
+    margin-bottom: 20px;
 }
 .scrollable-table-window table {
     width: 100%;
@@ -69,7 +70,7 @@ if st.session_state.current_analysis:
     col_viz, col_text = st.columns([1.2, 1])
     with col_viz:
         st.markdown("#### :material/schema: Architectural Flowchart Blueprint")
-        st.info("Use two fingers to pinch & zoom, or drag to pan around. Click the toolbar icons to reset view.", icon=":material/pinch:")
+        st.caption(":material/zoom_in: Use the toolbar buttons inside the diagram to zoom in. You can drag or swipe to explore large graphs.")
         with st.container(border=True):
             dot_flow = render_graphviz(data.get("graphviz_flowchart"), "#00FFAA", "TD")
     with col_text:
@@ -82,7 +83,7 @@ if st.session_state.current_analysis:
     c_trace, c_stack = st.columns([1.2, 1])
     with c_trace:
         st.markdown("**Visual Execution Memory Trace**")
-        st.info("Interactive view: Drag to explore wide mapping trees or pinch to zoom in on specific nodes.", icon=":material/drag_pan:")
+        st.caption(":material/pan_tool: Swipe directly on the diagram below to navigate through execution states.")
         with st.container(border=True):
             dot_trace = render_graphviz(data.get("graphviz_trace"), "#0099FF", "TD")
     
@@ -93,12 +94,12 @@ if st.session_state.current_analysis:
         st.markdown("**Recursive Frame Inspector**")
         call_stack = data.get("call_stack", [])
         if call_stack:
-            st.info("Slide the dot below left or right to step through the execution timeline dynamically.", icon=":material/linear_scale:")
+            st.caption(":material/swipe: **Interactive Timeline:** Drag the slider below to step forward and backward through the recursive execution frames.")
             step = st.slider("Execution Timeline Iteration", 0, len(call_stack)-1, 0, label_visibility="collapsed")
             current_frame = call_stack[step]
             
             st.markdown(f"#### :material/play_circle: {current_frame.get('step_name', 'System Action')}")
-            st.caption(current_frame.get('explanation', 'Resolving system operational state...'))
+            st.info(current_frame.get('explanation', 'Resolving system operational state...'), icon=":material/info:")
             
             stack_items = current_frame.get('stack', [])
             if not stack_items:
@@ -141,7 +142,7 @@ if st.session_state.current_analysis:
         st.plotly_chart(fig_bar, width='stretch')
         
     st.divider()
-    st.markdown(f"**Target Asymptotic Complexity:** \n\n :green[{data.get('primary_complexity', 'O(N)')}]")
+    st.markdown(f"**Target Asymptotic Complexity:** \n\n {data.get('primary_complexity', 'O(N)')}")
     st.divider()
     st.markdown("**Time Cost:** \n" + data.get('time_complexity', ''))
     st.divider()

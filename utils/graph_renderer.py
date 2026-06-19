@@ -78,37 +78,39 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
 
     try:
         raw_svg = dot.pipe(format='svg').decode('utf-8')
-        
-        # CRITICAL FIX: Strip hardcoded Graphviz dimensions so our JS engine can scale it
-        # We KEEP the viewBox so the aspect ratio remains perfectly intact
         raw_svg = re.sub(r'(<svg[^>]*)width="[^"]*"', r'\1', raw_svg)
         raw_svg = re.sub(r'(<svg[^>]*)height="[^"]*"', r'\1', raw_svg)
-        raw_svg = raw_svg.replace('<svg', '<svg style="width:100%; height:100%; touch-action:none !important;"')
+        raw_svg = raw_svg.replace('<svg', '<svg id="the-svg" style="width:100%; height:auto; transition: width 0.2s ease-out;"')
     except Exception:
         st.graphviz_chart(dot)
         return dot
 
+    # Pure Native HTML Scrolling with Width-Manipulation Zoom Buttons
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
         <style>
-            /* AGGRESSIVE MOBILE OVERRIDES: Force browser to surrender pinch/pan gestures to us */
-            body, html {{ margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; touch-action: none !important; user-select: none; -webkit-user-select: none; }}
-            #wrapper {{ width: 100%; height: 100%; position: relative; cursor: grab; touch-action: none !important; }}
-            #wrapper:active {{ cursor: grabbing; }}
+            body, html {{ margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }}
             
-            #zoom-layer {{ transform-origin: center; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transition: transform 0.05s linear; touch-action: none !important; }}
+            /* Native Hardware Accelerated Scroll Container */
+            #scroll-container {{ 
+                width: 100%; height: 100%; 
+                overflow: auto; 
+                -webkit-overflow-scrolling: touch; 
+                touch-action: pan-x pan-y; 
+            }}
             
-            .toolbar {{ position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; z-index: 100; }}
+            /* Floating Controls */
+            .toolbar {{ position: fixed; bottom: 15px; right: 15px; display: flex; gap: 6px; z-index: 100; background: rgba(22, 27, 34, 0.85); padding: 6px; border-radius: 12px; border: 1px solid {theme_color}; backdrop-filter: blur(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }}
             .tool-btn {{
-                background: rgba(22, 27, 34, 0.85); border: 1px solid {theme_color}; color: {theme_color};
-                border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-                cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s; touch-action: manipulation;
+                background: transparent; border: none; color: {theme_color};
+                width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;
             }}
             .tool-btn:active {{ background: {theme_color}; color: #161B22; transform: scale(0.95); }}
             
+            /* Theme overrides handled by JS */
             svg path[fill="#161B22" i], svg polygon[fill="#161B22" i] {{ fill: #161B22; transition: fill 0.3s; }}
             svg text {{ fill: #E6EDF3; font-family: sans-serif; font-weight: bold; transition: fill 0.3s; }}
             svg path[stroke="{theme_color}" i], svg polygon[stroke="{theme_color}" i] {{ stroke: {theme_color}; transition: stroke 0.3s; }}
@@ -116,67 +118,23 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
         </style>
     </head>
     <body>
-        <div id="wrapper">
-            <div class="toolbar">
-                <button class="tool-btn" onclick="zoomIn()"><span class="material-symbols-rounded">zoom_in</span></button>
-                <button class="tool-btn" onclick="zoomOut()"><span class="material-symbols-rounded">zoom_out</span></button>
-                <button class="tool-btn" onclick="resetZoom()"><span class="material-symbols-rounded">fit_screen</span></button>
-            </div>
-            <div id="zoom-layer">
-                {raw_svg}
-            </div>
+        <div id="scroll-container">
+            {raw_svg}
+        </div>
+        <div class="toolbar">
+            <button class="tool-btn" onclick="zoomOut()"><span class="material-symbols-rounded">zoom_out</span></button>
+            <button class="tool-btn" onclick="resetZoom()"><span class="material-symbols-rounded">fit_screen</span></button>
+            <button class="tool-btn" onclick="zoomIn()"><span class="material-symbols-rounded">zoom_in</span></button>
         </div>
         
         <script>
-            const wrapper = document.getElementById('wrapper');
-            const layer = document.getElementById('zoom-layer');
-            let scale = 1, x = 0, y = 0;
-            let isDragging = false, startX, startY;
-            let initPinch = null, initScale = 1;
-
-            const update = () => layer.style.transform = `translate(${{x}}px, ${{y}}px) scale(${{scale}})`;
-
-            // Mouse panning (Desktop)
-            wrapper.addEventListener('mousedown', e => {{ isDragging = true; startX = e.clientX - x; startY = e.clientY - y; }});
-            window.addEventListener('mouseup', () => isDragging = false);
-            window.addEventListener('mousemove', e => {{ if (!isDragging) return; x = e.clientX - startX; y = e.clientY - startY; update(); }});
-
-            // Wheel zooming (Desktop)
-            wrapper.addEventListener('wheel', e => {{ e.preventDefault(); scale *= e.deltaY > 0 ? 0.9 : 1.1; update(); }}, {{passive: false}});
-
-            // Mobile Touch Panning & Pinch-to-Zoom
-            wrapper.addEventListener('touchstart', e => {{
-                e.preventDefault(); // CRITICAL: Stops Safari/Chrome from zooming the entire page
-                if (e.touches.length === 1) {{
-                    isDragging = true; startX = e.touches[0].clientX - x; startY = e.touches[0].clientY - y;
-                }} else if (e.touches.length === 2) {{
-                    isDragging = false;
-                    initPinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    initScale = scale;
-                }}
-            }}, {{passive: false}});
+            let currentWidth = 100;
+            const svgEl = document.getElementById('the-svg');
             
-            wrapper.addEventListener('touchmove', e => {{
-                e.preventDefault(); // CRITICAL: Stops Safari/Chrome from scrolling the page
-                if (e.touches.length === 1 && isDragging) {{
-                    x = e.touches[0].clientX - startX; y = e.touches[0].clientY - startY; update();
-                }} else if (e.touches.length === 2 && initPinch) {{
-                    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                    scale = initScale * (dist / initPinch); update();
-                }}
-            }}, {{passive: false}});
-            
-            wrapper.addEventListener('touchend', e => {{
-                if (e.touches.length < 2) initPinch = null;
-                if (e.touches.length === 0) isDragging = false;
-            }});
+            function zoomIn() {{ currentWidth += 40; svgEl.style.width = currentWidth + '%'; }}
+            function zoomOut() {{ currentWidth = Math.max(50, currentWidth - 40); svgEl.style.width = currentWidth + '%'; }}
+            function resetZoom() {{ currentWidth = 100; svgEl.style.width = currentWidth + '%'; }}
 
-            // Toolbar functions
-            function zoomIn() {{ scale *= 1.2; update(); }}
-            function zoomOut() {{ scale /= 1.2; update(); }}
-            function resetZoom() {{ scale = 1; x = 0; y = 0; update(); }}
-
-            // Streamlit Light/Dark Theme Sync Module
             function syncTheme() {{
                 try {{
                     const parentDoc = window.parent.document;
@@ -198,7 +156,8 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
                             svg text {{ fill: #31333F !important; }}
                             svg path[stroke="{theme_color}" i], svg polygon[stroke="{theme_color}" i] {{ stroke: ${{primary}} !important; }}
                             svg polygon[fill="{theme_color}" i] {{ fill: ${{primary}} !important; }}
-                            .tool-btn {{ background: rgba(240, 242, 246, 0.9) !important; color: ${{primary}} !important; border-color: ${{primary}} !important; }}
+                            .toolbar {{ background: rgba(240, 242, 246, 0.95); border-color: ${{primary}}; }}
+                            .tool-btn {{ color: ${{primary}}; }}
                         `;
                     }} else {{ styleEl.innerHTML = ''; }}
                 }} catch (e) {{}}
@@ -208,7 +167,6 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
     </body>
     </html>
     """
-    # Increased height slightly to accommodate the toolbar and pinch space comfortably
-    components.html(html_content, height=500)
+    components.html(html_content, height=450)
     inject_theme_sync_js()
     return dot

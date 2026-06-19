@@ -29,25 +29,25 @@ if fc_state and fc_state.get("algo_name") == algo_name:
 
 display_name = algo_name[:37] + "..." if len(algo_name) > 40 else algo_name
 
-st.markdown(f"### :material/style: Active-Recall Deck: :green[{display_name}]")
+st.markdown(f"### :material/style: Active-Recall Deck: {display_name}")
 
-# Core Fix: Swapped the back of the card to display:block so text anchors properly to the top!
+# CSS Fix: display block and left text alignment ensures long text anchors to the top.
 st.html("""
 <style>
 .flip-card { display: block; background-color: transparent; width: 100%; height: 280px; perspective: 1000px; margin-bottom: 20px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
 .flip-card input[type="checkbox"] { display: none; }
 .flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; }
 .flip-card input[type="checkbox"]:checked ~ .flip-card-inner { transform: rotateY(180deg); }
-.flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 12px; border: 2px solid #00FFAA; box-sizing: border-box; }
+.flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; border-radius: 12px; border: 2px solid #00FFAA; box-sizing: border-box; padding: 25px; overflow-y: auto; }
 
 .flip-card-front { 
     background-color: #161B22; color: #E6EDF3; font-size: 1.2rem; font-weight: bold; 
-    display: flex; align-items: center; justify-content: center; padding: 25px;
+    display: flex; align-items: center; justify-content: center;
 }
 .flip-card-back { 
     background-color: #00FFAA; color: #0D1117; transform: rotateY(180deg); 
-    font-size: 1.1rem; line-height: 1.6; overflow-y: auto; 
-    display: block; text-align: left; padding: 25px; 
+    font-size: 1.1rem; line-height: 1.6; 
+    display: block; text-align: left; 
 }
 </style>
 """)
@@ -141,8 +141,8 @@ if st.session_state.get("flashcards"):
         <label class="flip-card">
             <input type="checkbox">
             <div class="flip-card-inner">
-                <div class="flip-card-front">Q: {card.get('front', 'Question')}</div>
-                <div class="flip-card-back">{card.get('back', 'Answer')}</div>
+                <div class="flip-card-front"><div>Q: {card.get('front', 'Question')}</div></div>
+                <div class="flip-card-back"><div>{card.get('back', 'Answer')}</div></div>
             </div>
         </label>
         """
