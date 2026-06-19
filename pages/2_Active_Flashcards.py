@@ -31,7 +31,7 @@ display_name = algo_name[:37] + "..." if len(algo_name) > 40 else algo_name
 
 st.markdown(f"### :material/style: Active-Recall Deck: {display_name}")
 
-# CRITICAL FIX: explicit flex-direction: column and justify-content: flex-start forces content to pin to the top!
+# CRITICAL FIX: explicit `display: block` on the back of the card forces text to the top!
 st.html("""
 <style>
 .flip-card { display: block; background-color: transparent; width: 100%; height: 280px; perspective: 1000px; margin-bottom: 20px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -40,18 +40,17 @@ st.html("""
 .flip-card input[type="checkbox"]:checked ~ .flip-card-inner { transform: rotateY(180deg); }
 .flip-card-front, .flip-card-back { 
     position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; 
-    border-radius: 12px; border: 2px solid #00FFAA; box-sizing: border-box; padding: 25px; overflow-y: auto; 
-    display: flex; flex-direction: column; 
+    border-radius: 12px; border: 2px solid #00FFAA; box-sizing: border-box; overflow-y: auto; 
 }
 
 .flip-card-front { 
     background-color: #161B22; color: #E6EDF3; font-size: 1.2rem; font-weight: bold; 
-    justify-content: center; align-items: center; text-align: center;
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 25px;
 }
 .flip-card-back { 
     background-color: #00FFAA; color: #0D1117; transform: rotateY(180deg); 
     font-size: 1.1rem; line-height: 1.6; 
-    justify-content: flex-start; align-items: flex-start; text-align: left; 
+    display: block; text-align: left; padding: 25px; 
 }
 </style>
 """)

@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 from graphviz import Digraph
 from utils.ai_engine import analyze_algorithm, answer_followup
-from utils.graph_renderer import render_graphviz, inject_theme_sync_js
+from utils.graph_renderer import render_graphviz, render_raw_dot, inject_theme_sync_js
 from utils.report_generator import generate_beautiful_report
 from database import save_user_state, get_user_state
 
@@ -13,18 +13,10 @@ st.html("""
 <style>
 body, .stApp { overflow-x: hidden !important; width: 100vw; max-width: 100vw; }
 .scrollable-table-window {
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    border: 1px solid rgba(128, 128, 128, 0.2);
-    border-radius: 8px;
-    padding: 10px;
-    margin-bottom: 20px;
+    width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    border: 1px solid rgba(128, 128, 128, 0.2); border-radius: 8px; padding: 10px; margin-bottom: 20px;
 }
-.scrollable-table-window table {
-    width: 100%;
-    white-space: nowrap !important;
-}
+.scrollable-table-window table { width: 100%; white-space: nowrap !important; }
 </style>
 """)
 
@@ -45,12 +37,7 @@ if "current_analysis" not in st.session_state:
 
 st.markdown("### :material/account_tree: Algorithmic Mind-Mapper Workspace")
 c1, c2 = st.columns([3, 1])
-algo_name = c1.text_input(
-    "Code Context / Algorithm Name", 
-    value=st.session_state.get("current_algo", ""), 
-    placeholder="E.g., 'Dijkstra's Algorithm' OR paste your raw Python function block here...", 
-    label_visibility="collapsed"
-)
+algo_name = c1.text_input("Code Context / Algorithm Name", value=st.session_state.get("current_algo", ""), placeholder="E.g., 'Dijkstra's Algorithm' OR paste your raw Python function block here...", label_visibility="collapsed")
 
 if c2.button("Compile Matrix Blueprint", type="primary", width='stretch', icon=":material/play_arrow:"):
     if algo_name:
@@ -70,7 +57,7 @@ if st.session_state.current_analysis:
     col_viz, col_text = st.columns([1.2, 1])
     with col_viz:
         st.markdown("#### :material/schema: Architectural Flowchart Blueprint")
-        st.caption(":material/zoom_in: Use the toolbar to zoom in and out. Drag or swipe directly on the background to pan.")
+        st.caption(":material/zoom_in: Use the buttons above the graph to zoom. Swipe/drag to pan.")
         with st.container(border=True):
             dot_flow = render_graphviz(data.get("graphviz_flowchart"), "#00FFAA", "TD")
     with col_text:
@@ -131,14 +118,7 @@ if st.session_state.current_analysis:
         st.caption(":material/touch_app: *Tip: Double-tap or double-click anywhere on the chart to reset the zoom/view.*")
         df_bar = pd.DataFrame({"Metric": list(tradeoffs.keys()), "Score": list(tradeoffs.values())})
         fig_bar = px.bar(df_bar, x="Score", y="Metric", orientation='h', template="plotly_dark", color="Score", color_continuous_scale="Tealgrn")
-        fig_bar.update_layout(
-            width=750, height=350, 
-            xaxis=dict(range=[0, 10]), 
-            margin=dict(l=150, r=20, t=30, b=20),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="#E6EDF3", size=13)
-        )
+        fig_bar.update_layout(width=750, height=350, xaxis=dict(range=[0, 10]), margin=dict(l=150, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#E6EDF3", size=13))
         st.plotly_chart(fig_bar, width='stretch')
         
     st.divider()
@@ -164,15 +144,7 @@ if st.session_state.current_analysis:
     safe_name = safe_name[:30] if len(safe_name) > 30 else (safe_name or "Algorithm")
     
     report_html = generate_beautiful_report(safe_name, data, dot_flow, dot_trace, fig_bar)
-    st.download_button(
-        label="Download Analytical Report (.html)", 
-        data=report_html, 
-        file_name=f"{safe_name}_Technical_Report.html", 
-        mime="text/html", 
-        type="primary", 
-        icon=":material/picture_as_pdf:",
-        width='stretch'
-    )
+    st.download_button(label="Download Analytical Report (.html)", data=report_html, file_name=f"{safe_name}_Technical_Report.html", mime="text/html", type="primary", icon=":material/picture_as_pdf:", width='stretch')
     st.divider()
 
     st.markdown("#### :material/forum: Consult Interactive Tutor")
@@ -182,15 +154,8 @@ if st.session_state.current_analysis:
             if isinstance(content, dict):
                 st.write(content.get("text", ""))
                 if content.get("graphviz_code"):
-                    from graphviz import Source
-                    try:
-                        raw_code = content["graphviz_code"]
-                        if 'node [' not in raw_code:
-                            raw_code = raw_code.replace('{', '{\n node [style="filled, rounded" fillcolor="#161B22" color="#00FFAA" fontcolor="#E6EDF3"];\n edge [color="#00FFAA" fontcolor="#E6EDF3"];\n bgcolor="transparent";\n', 1)
-                        custom_dot = Source(raw_code)
-                        st.graphviz_chart(custom_dot, width='stretch')
-                        inject_theme_sync_js()
-                    except Exception: st.error("Failed to render custom architecture graph.")
+                    # CRITICAL FIX: The Tutor Followup graphs now use the Zoom Component too!
+                    render_raw_dot(content["graphviz_code"], "#FF007F")
             else:
                 st.write(content)
             
