@@ -78,31 +78,34 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
 
     try:
         raw_svg = dot.pipe(format='svg').decode('utf-8')
-        # CRITICAL FIX: Strip hardcoded width/height so the custom zoom engine can dynamically scale it
-        raw_svg = re.sub(r'(<svg[^>]*)(width="[^"]*")(.*?)', r'\1\3', raw_svg)
-        raw_svg = re.sub(r'(<svg[^>]*)(height="[^"]*")(.*?)', r'\1\3', raw_svg)
-        raw_svg = raw_svg.replace('<svg', '<svg style="width:100%; height:100%; touch-action:none;"')
+        
+        # CRITICAL FIX: Strip hardcoded Graphviz dimensions so our JS engine can scale it
+        # We KEEP the viewBox so the aspect ratio remains perfectly intact
+        raw_svg = re.sub(r'(<svg[^>]*)width="[^"]*"', r'\1', raw_svg)
+        raw_svg = re.sub(r'(<svg[^>]*)height="[^"]*"', r'\1', raw_svg)
+        raw_svg = raw_svg.replace('<svg', '<svg style="width:100%; height:100%; touch-action:none !important;"')
     except Exception:
         st.graphviz_chart(dot)
         return dot
 
-    # Pure Vanilla JS Multi-Touch Pan & Zoom Engine
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
         <style>
-            body, html {{ margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }}
-            #wrapper {{ width: 100%; height: 100%; position: relative; cursor: grab; }}
+            /* AGGRESSIVE MOBILE OVERRIDES: Force browser to surrender pinch/pan gestures to us */
+            body, html {{ margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; touch-action: none !important; user-select: none; -webkit-user-select: none; }}
+            #wrapper {{ width: 100%; height: 100%; position: relative; cursor: grab; touch-action: none !important; }}
             #wrapper:active {{ cursor: grabbing; }}
-            #zoom-layer {{ transform-origin: center; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transition: transform 0.05s linear; }}
+            
+            #zoom-layer {{ transform-origin: center; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transition: transform 0.05s linear; touch-action: none !important; }}
             
             .toolbar {{ position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; z-index: 100; }}
             .tool-btn {{
                 background: rgba(22, 27, 34, 0.85); border: 1px solid {theme_color}; color: {theme_color};
                 border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
-                cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s;
+                cursor: pointer; backdrop-filter: blur(4px); transition: all 0.2s; touch-action: manipulation;
             }}
             .tool-btn:active {{ background: {theme_color}; color: #161B22; transform: scale(0.95); }}
             
@@ -133,16 +136,17 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
 
             const update = () => layer.style.transform = `translate(${{x}}px, ${{y}}px) scale(${{scale}})`;
 
-            // Mouse panning
+            // Mouse panning (Desktop)
             wrapper.addEventListener('mousedown', e => {{ isDragging = true; startX = e.clientX - x; startY = e.clientY - y; }});
             window.addEventListener('mouseup', () => isDragging = false);
             window.addEventListener('mousemove', e => {{ if (!isDragging) return; x = e.clientX - startX; y = e.clientY - startY; update(); }});
 
-            // Wheel zooming
+            // Wheel zooming (Desktop)
             wrapper.addEventListener('wheel', e => {{ e.preventDefault(); scale *= e.deltaY > 0 ? 0.9 : 1.1; update(); }}, {{passive: false}});
 
             // Mobile Touch Panning & Pinch-to-Zoom
             wrapper.addEventListener('touchstart', e => {{
+                e.preventDefault(); // CRITICAL: Stops Safari/Chrome from zooming the entire page
                 if (e.touches.length === 1) {{
                     isDragging = true; startX = e.touches[0].clientX - x; startY = e.touches[0].clientY - y;
                 }} else if (e.touches.length === 2) {{
@@ -153,7 +157,7 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
             }}, {{passive: false}});
             
             wrapper.addEventListener('touchmove', e => {{
-                e.preventDefault();
+                e.preventDefault(); // CRITICAL: Stops Safari/Chrome from scrolling the page
                 if (e.touches.length === 1 && isDragging) {{
                     x = e.touches[0].clientX - startX; y = e.touches[0].clientY - startY; update();
                 }} else if (e.touches.length === 2 && initPinch) {{
@@ -172,7 +176,7 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
             function zoomOut() {{ scale /= 1.2; update(); }}
             function resetZoom() {{ scale = 1; x = 0; y = 0; update(); }}
 
-            // Theme Sync Module
+            // Streamlit Light/Dark Theme Sync Module
             function syncTheme() {{
                 try {{
                     const parentDoc = window.parent.document;
@@ -204,6 +208,7 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
     </body>
     </html>
     """
-    components.html(html_content, height=450)
+    # Increased height slightly to accommodate the toolbar and pinch space comfortably
+    components.html(html_content, height=500)
     inject_theme_sync_js()
     return dot
