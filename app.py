@@ -6,17 +6,21 @@ st.set_page_config(page_title="Profile - Algorithmic Mind-Mapper", layout="wide"
 
 init_db()
 
-# QoL FIX: Replaced 'nowrap' with 'normal' so table stays in bounds. Added smooth scroll.
+# QoL FIX: Locked body overflow-x to prevent the entire page from sliding left/right on mobile. 
+# Confined horizontal scrolling EXCLUSIVELY to markdown tables.
 st.html("""
 <style>
-html { scroll-behavior: smooth; }
+body, .stApp { 
+    overflow-x: hidden !important; 
+}
 [data-testid="stMarkdownContainer"] table {
     display: block !important;
     overflow-x: auto !important;
-    white-space: normal !important; 
-    word-wrap: break-word !important;
+    white-space: nowrap !important; 
     -webkit-overflow-scrolling: touch;
     width: 100%;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    border-radius: 8px;
 }
 </style>
 """)

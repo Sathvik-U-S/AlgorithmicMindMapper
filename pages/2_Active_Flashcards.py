@@ -19,7 +19,6 @@ if not saved_state or not saved_state.get("algo_name"):
 algo_name = saved_state["algo_name"]
 algo_context = saved_state["ai_data"].get("explanation", algo_name)
 
-# QoL: Attempt to load persistent flashcard session from DB
 fc_state = get_flashcard_state(st.session_state.user_id)
 if fc_state and fc_state.get("algo_name") == algo_name:
     if "flashcards" not in st.session_state:
@@ -32,7 +31,6 @@ display_name = algo_name[:37] + "..." if len(algo_name) > 40 else algo_name
 
 st.markdown(f"### :material/style: Active-Recall Deck: :green[{display_name}]")
 
-# QoL CSS FIX: Tap-to-flip (Checkbox hack), un-selectable text, and normal inline flow block for bold words.
 st.html("""
 <style>
 .flip-card { display: block; background-color: transparent; width: 100%; height: 260px; perspective: 1000px; margin-bottom: 20px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -42,7 +40,6 @@ st.html("""
 .flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; padding: 25px; border-radius: 12px; border: 2px solid #00FFAA; box-sizing: border-box; }
 .flip-card-front { background-color: #161B22; color: #E6EDF3; font-size: 1.2rem; font-weight: bold; }
 .flip-card-back { background-color: #00FFAA; color: #0D1117; transform: rotateY(180deg); font-size: 1.1rem; line-height: 1.6; overflow-y: auto; }
-/* Isolates text layout so bolding does not break flexbox rows */
 .flip-card-text-wrapper { display: block; width: 100%; text-align: center; }
 </style>
 """)
@@ -58,7 +55,7 @@ js_code = """
                 if (!appDiv) return;
                 
                 const bgColor = window.parent.getComputedStyle(appDiv).backgroundColor;
-                const rgb = bgColor.match(/\\d+/g);
+                const rgb = bgColor.match(/\d+/g);
                 if (!rgb) return;
                 
                 const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
@@ -104,8 +101,7 @@ if st.session_state.get("flashcards"):
     idx = st.session_state.card_idx
     
     if idx >= len(cards):
-        st.balloons()
-        st.success("You've completed the deck!", icon=":material/celebration:")
+        st.success("Assessment completed successfully!", icon=":material/celebration:")
         
         st.markdown("#### :material/analytics: Session Performance Report")
         stats = st.session_state.flash_stats
@@ -130,10 +126,9 @@ if st.session_state.get("flashcards"):
             st.rerun()
     else:
         st.progress((idx) / len(cards), text=f"Card {idx+1} of {len(cards)}")
-        st.caption("*(Tap the card to reveal the technical explanation)*")
+        st.caption(":material/touch_app: *(Tap the card to reveal the technical explanation)*")
         
         card = cards[idx]
-        # QoL FIX: Pure CSS click-to-flip with checkbox logic, text wrapped in <div class="flip-card-text-wrapper">
         card_html = f"""
         <label class="flip-card">
             <input type="checkbox">

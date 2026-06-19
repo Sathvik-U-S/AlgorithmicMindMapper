@@ -12,12 +12,13 @@ def analyze_algorithm(algo_name, api_key, model="gemini-2.5-flash"):
     CRITICAL INSTRUCTION: Return ONLY a raw, valid JSON object. No Markdown wrappers.
     
     CRITICAL FORMATTING RULES:
-    1. NEVER color entire sentences or paragraphs. ONLY wrap specific technical keywords in colors.
-    2. Use Streamlit colors heavily (:blue[keyword], :green[keyword], :red[keyword], :orange[keyword]) for readability.
+    1. NEVER color entire sentences or paragraphs.
+    2. STRICT PROHIBITION: DO NOT use Streamlit color syntax (e.g., :green[...], :blue[...]) inside `graphviz_flowchart`, `graphviz_trace`, `call_stack`, or `execution_trace_table`. NEVER insert color blocks like ":green[Pivot]". Use plain text ONLY for these structures.
+    3. You MAY use Streamlit colors ONLY in the `explanation`, `time_complexity`, `space_complexity`, and `alternative` fields to highlight technical keywords.
     
     JSON SCHEMA REQUIRED:
     {{
-        "explanation": "Detailed Markdown explanation of the core logic. (Use keyword colors!)",
+        "explanation": "Detailed Markdown explanation of the core logic.",
         "edge_cases": ["Edge case 1 and how it handles it", "Edge case 2"],
         "graphviz_flowchart": {{
             "nodes": [{{"id": "A", "label": "Start"}}],
@@ -39,7 +40,7 @@ def analyze_algorithm(algo_name, api_key, model="gemini-2.5-flash"):
         "tradeoffs": {{
             "Time Efficiency": 8, "Space Efficiency": 5, "Scalability": 9, "Simplicity": 4, "Adaptability": 6
         }},
-        "execution_trace_table": "Raw Markdown table string. DO NOT wrap this in code blocks like ```markdown. Just return the pipe-separated string.",
+        "execution_trace_table": "Raw Markdown table string. DO NOT use color syntax here. Just return the pipe-separated string.",
         "time_complexity": "Markdown bullet points.",
         "space_complexity": "Markdown bullet points.",
         "primary_complexity": "Exactly one of: O(1), O(log N), O(N), O(N log N), O(N^2), O(2^N)",
@@ -61,7 +62,7 @@ def generate_flashcards(algo_context, api_key, model="gemini-2.5-flash"):
     Generate 5 Active-Recall Flashcards.
     
     CRITICAL FORMATTING RULES: 
-    1. Do NOT use markdown symbols. Use standard HTML tags: <b>bold</b>, <i>italic</i>, <code>code</code>.
+    1. Do NOT use markdown symbols or Streamlit color syntax (e.g., :green[...]). Use standard HTML tags ONLY: <b>bold</b>, <i>italic</i>, <code>code</code>.
     2. NEVER break sentences randomly. Ensure the text flows normally as cohesive paragraphs.
     
     Return ONLY valid JSON in this format:
@@ -81,9 +82,8 @@ def answer_followup(question, context_data, api_key, model="gemini-2.5-flash"):
     Context: {context_data}
     Student asks: {question}
     
-    Provide a concise, direct answer. Color-code technical keywords using :blue[keyword] syntax.
+    Provide a concise, direct answer. 
     If the user asks to draw or trace a graph/flowchart, provide clean, basic Graphviz DOT syntax. 
-    (Do NOT add custom styling, colors, or node attributes; the UI wrapper will dynamically style it).
     
     Return ONLY valid JSON in this format:
     {{

@@ -9,6 +9,25 @@ from database import save_user_state, get_user_state
 
 st.set_page_config(page_title="DSA Visualizer", layout="wide")
 
+# CSS to ensure the main page never scrolls horizontally, but allows custom table containers to do so.
+st.html("""
+<style>
+body, .stApp { overflow-x: hidden !important; }
+.scrollable-table-window {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    border-radius: 8px;
+    padding: 10px;
+}
+.scrollable-table-window table {
+    width: 100%;
+    white-space: nowrap !important;
+}
+</style>
+""")
+
 if not st.session_state.get("api_key") or not st.session_state.get("user_id"):
     st.warning("Authentication Required: Please configure your Gemini API Key on the Profile page.", icon=":material/lock:")
     st.stop()
@@ -65,14 +84,16 @@ if st.session_state.current_analysis:
         st.markdown("**Visual Execution Memory Trace**")
         with st.container(border=True):
             dot_trace = render_graphviz(data.get("graphviz_trace"), "#0099FF", "TD")
-    st.markdown(data.get("execution_trace_table", ""))
+    
+    # CRITICAL FIX: Wrapped the table inside the dedicated scrolling window div
+    table_md = data.get("execution_trace_table", "")
+    st.markdown(f'<div class="scrollable-table-window">\n\n{table_md}\n\n</div>', unsafe_allow_html=True)
     
     with c_stack:
         st.markdown("**Recursive Frame Inspector**")
         call_stack = data.get("call_stack", [])
         if call_stack:
-            # QoL FIX: Added user instructions for sliding mechanic
-            st.caption("👉 **Interactive Timeline:** Drag the slider below to step forward and backward through the recursive execution frames.")
+            st.caption(":material/swipe: **Interactive Timeline:** Drag the slider below to step forward and backward through the recursive execution frames.")
             step = st.slider("Execution Timeline Iteration", 0, len(call_stack)-1, 0, label_visibility="collapsed")
             current_frame = call_stack[step]
             
@@ -106,8 +127,7 @@ if st.session_state.current_analysis:
     fig_bar = None
     st.markdown("##### Space-Time Structural Profile")
     if tradeoffs:
-        # QoL FIX: Added reset instructions for the chart
-        st.caption("💡 *Tip: Double-tap or double-click anywhere on the chart to reset the zoom/view.*")
+        st.caption(":material/touch_app: *Tip: Double-tap or double-click anywhere on the chart to reset the zoom/view.*")
         df_bar = pd.DataFrame({"Metric": list(tradeoffs.keys()), "Score": list(tradeoffs.values())})
         fig_bar = px.bar(df_bar, x="Score", y="Metric", orientation='h', template="plotly_dark", color="Score", color_continuous_scale="Tealgrn")
         fig_bar.update_layout(
