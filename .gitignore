@@ -1,0 +1,17 @@
+# Python compiler cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Database & Tracking Session Data (Critical for security)
+dsa_sessions.db
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# System or temporary files
+.DS_Store
+tree_list.txt
