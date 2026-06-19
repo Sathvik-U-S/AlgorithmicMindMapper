@@ -78,95 +78,188 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
 
     try:
         raw_svg = dot.pipe(format='svg').decode('utf-8')
-        raw_svg = re.sub(r'(<svg[^>]*)width="[^"]*"', r'\1', raw_svg)
-        raw_svg = re.sub(r'(<svg[^>]*)height="[^"]*"', r'\1', raw_svg)
-        raw_svg = raw_svg.replace('<svg', '<svg id="the-svg" style="width:100%; height:auto; transition: width 0.2s ease-out;"')
+        # CRITICAL FIX: Strip hardcoded dimensions so our custom wrapper can scale it dynamically
+        raw_svg = re.sub(r'(<svg[^>]*)(width="[^"]*")(.*?)', r'\1\3', raw_svg)
+        raw_svg = re.sub(r'(<svg[^>]*)(height="[^"]*")(.*?)', r'\1\3', raw_svg)
     except Exception:
         st.graphviz_chart(dot)
         return dot
 
-    # Pure Native HTML Scrolling with Width-Manipulation Zoom Buttons
+    # Pure Native HTML Scrolling with Custom Multi-Touch Pan/Zoom Logic
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
         <style>
-            body, html {{ margin: 0; padding: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }}
+            :root {{
+                --text-color: #E6EDF3;
+                --bg-color: transparent;
+                --border-color: rgba(128, 128, 128, 0.2);
+                --btn-bg: rgba(22, 27, 34, 0.85);
+                --container-bg: transparent;
+                --primary: {theme_color};
+            }}
+            body {{ margin: 0; background-color: var(--bg-color); color: var(--text-color); font-family: sans-serif; overflow: hidden; }}
             
-            /* Native Hardware Accelerated Scroll Container */
-            #scroll-container {{ 
-                width: 100%; height: 100%; 
-                overflow: auto; 
-                -webkit-overflow-scrolling: touch; 
-                touch-action: pan-x pan-y; 
+            .controls {{ 
+                position: sticky; top: 0; z-index: 100; display: flex; gap: 12px; background-color: var(--bg-color); 
+                padding: 10px; align-items: center; border-bottom: 1px solid var(--border-color); backdrop-filter: blur(8px);
+            }}
+            button {{ 
+                display: flex; align-items: center; gap: 5px; padding: 6px 12px; cursor: pointer; border-radius: 6px; 
+                border: 1px solid var(--primary); background: var(--btn-bg); color: var(--primary); font-weight: bold; 
+                font-size: 13px; transition: all 0.2s; 
+            }}
+            button .material-icons {{ font-size: 18px; }}
+            button:hover, button:active {{ background: var(--primary); color: #161B22; }}
+            
+            #wrapper {{ 
+                width: 100%; height: calc(100vh - 60px); overflow: auto; background: var(--container-bg); 
+                cursor: grab; position: relative; -webkit-overflow-scrolling: touch;
+            }}
+            #wrapper:active {{ cursor: grabbing; }}
+            #wrapper::-webkit-scrollbar {{ width: 8px; height: 8px; }}
+            #wrapper::-webkit-scrollbar-track {{ background: transparent; }}
+            #wrapper::-webkit-scrollbar-thumb {{ background-color: var(--border-color); border-radius: 8px; }}
+            #wrapper::-webkit-scrollbar-thumb:hover {{ background-color: var(--primary); }}
+            
+            #container {{ 
+                transform-origin: 0 0; transition: transform 0.1s ease-out; display: inline-block; 
+                min-width: 100%; min-height: 100%; user-select: none; padding: 20px; box-sizing: border-box;
             }}
             
-            /* Floating Controls */
-            .toolbar {{ position: fixed; bottom: 15px; right: 15px; display: flex; gap: 6px; z-index: 100; background: rgba(22, 27, 34, 0.85); padding: 6px; border-radius: 12px; border: 1px solid {theme_color}; backdrop-filter: blur(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.4); }}
-            .tool-btn {{
-                background: transparent; border: none; color: {theme_color};
-                width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;
-            }}
-            .tool-btn:active {{ background: {theme_color}; color: #161B22; transform: scale(0.95); }}
+            svg {{ width: 100%; height: auto; pointer-events: none; }}
             
-            /* Theme overrides handled by JS */
-            svg path[fill="#161B22" i], svg polygon[fill="#161B22" i] {{ fill: #161B22; transition: fill 0.3s; }}
-            svg text {{ fill: #E6EDF3; font-family: sans-serif; font-weight: bold; transition: fill 0.3s; }}
-            svg path[stroke="{theme_color}" i], svg polygon[stroke="{theme_color}" i] {{ stroke: {theme_color}; transition: stroke 0.3s; }}
-            svg polygon[fill="{theme_color}" i] {{ fill: {theme_color}; transition: fill 0.3s; }}
+            /* The dynamic theme overrides will be injected here by JS */
         </style>
     </head>
     <body>
-        <div id="scroll-container">
-            {raw_svg}
+        <div class="controls">
+            <button type="button" onclick="zoom(1.2)"><span class="material-icons">zoom_in</span> Zoom In</button>
+            <button type="button" onclick="zoom(0.8)"><span class="material-icons">zoom_out</span> Zoom Out</button>
+            <button type="button" onclick="resetZoom()"><span class="material-icons">restart_alt</span> Reset</button>
+            <span id="zoom-level" style="margin-left: 10px; font-weight: 500; font-family: monospace;">100%</span>
         </div>
-        <div class="toolbar">
-            <button class="tool-btn" onclick="zoomOut()"><span class="material-symbols-rounded">zoom_out</span></button>
-            <button class="tool-btn" onclick="resetZoom()"><span class="material-symbols-rounded">fit_screen</span></button>
-            <button class="tool-btn" onclick="zoomIn()"><span class="material-symbols-rounded">zoom_in</span></button>
+        
+        <div id="wrapper">
+            <div id="container">
+                {raw_svg}
+            </div>
         </div>
         
         <script>
-            let currentWidth = 100;
-            const svgEl = document.getElementById('the-svg');
-            
-            function zoomIn() {{ currentWidth += 40; svgEl.style.width = currentWidth + '%'; }}
-            function zoomOut() {{ currentWidth = Math.max(50, currentWidth - 40); svgEl.style.width = currentWidth + '%'; }}
-            function resetZoom() {{ currentWidth = 100; svgEl.style.width = currentWidth + '%'; }}
-
             function syncTheme() {{
                 try {{
                     const parentDoc = window.parent.document;
                     const appDiv = parentDoc.querySelector('.stApp') || parentDoc.body;
                     const bgColor = window.parent.getComputedStyle(appDiv).backgroundColor;
                     const rgb = bgColor.match(/\d+/g);
-                    if (!rgb) return;
+                    let isLight = false;
                     
-                    const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
-                    const isLight = brightness > 128;
+                    if (rgb && rgb.length >= 3) {{
+                        const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
+                        isLight = brightness > 128;
+                    }}
                     
                     let styleEl = document.getElementById('dynamic-theme');
-                    if (!styleEl) {{ styleEl = document.createElement('style'); styleEl.id = 'dynamic-theme'; document.head.appendChild(styleEl); }}
+                    if (!styleEl) {{ 
+                        styleEl = document.createElement('style'); 
+                        styleEl.id = 'dynamic-theme'; 
+                        document.head.appendChild(styleEl); 
+                    }}
                     
                     if (isLight) {{
                         let primary = "{theme_color}" === "#00FFAA" ? "#FF007F" : "#0099FF";
                         styleEl.innerHTML = `
+                            :root {{
+                                --primary: ${{primary}};
+                                --text-color: #31333F;
+                                --bg-color: #FFFFFF;
+                                --btn-bg: rgba(240, 242, 246, 0.95);
+                                --container-bg: rgba(240, 242, 246, 0.5);
+                                --border-color: rgba(49, 51, 63, 0.2);
+                            }}
                             svg path[fill="#161B22" i], svg polygon[fill="#161B22" i] {{ fill: #F0F2F6 !important; }}
-                            svg text {{ fill: #31333F !important; }}
+                            svg text {{ fill: #31333F !important; font-weight: bold !important; }}
                             svg path[stroke="{theme_color}" i], svg polygon[stroke="{theme_color}" i] {{ stroke: ${{primary}} !important; }}
                             svg polygon[fill="{theme_color}" i] {{ fill: ${{primary}} !important; }}
-                            .toolbar {{ background: rgba(240, 242, 246, 0.95); border-color: ${{primary}}; }}
-                            .tool-btn {{ color: ${{primary}}; }}
                         `;
-                    }} else {{ styleEl.innerHTML = ''; }}
-                }} catch (e) {{}}
+                    }} else {{ 
+                        styleEl.innerHTML = `
+                            :root {{
+                                --primary: {theme_color};
+                                --text-color: #E6EDF3;
+                                --bg-color: transparent;
+                                --btn-bg: rgba(22, 27, 34, 0.85);
+                                --container-bg: transparent;
+                                --border-color: rgba(128, 128, 128, 0.2);
+                            }}
+                            svg path[fill="#161B22" i], svg polygon[fill="#161B22" i] {{ fill: #161B22 !important; }}
+                            svg text {{ fill: #E6EDF3 !important; font-weight: bold !important; }}
+                            svg path[stroke="{theme_color}" i], svg polygon[stroke="{theme_color}" i] {{ stroke: {theme_color} !important; }}
+                            svg polygon[fill="{theme_color}" i] {{ fill: {theme_color} !important; }}
+                        `;
+                    }}
+                }} catch (e) {{ console.log("Theme sync fallback."); }}
             }}
-            syncTheme(); setInterval(syncTheme, 500);
+            syncTheme(); setInterval(syncTheme, 1000);
+            
+            // --- Custom Zoom Engine ---
+            let scale = 1.0;
+            const container = document.getElementById('container');
+            const zoomLevel = document.getElementById('zoom-level');
+            const wrapper = document.getElementById('wrapper');
+            
+            function zoom(factor) {{
+                scale *= factor;
+                if (scale < 0.2) scale = 0.2;
+                if (scale > 10.0) scale = 10.0;
+                container.style.transform = `scale(${{scale}})`;
+                zoomLevel.innerText = Math.round(scale * 100) + "%";
+            }}
+            function resetZoom() {{
+                scale = 1.0;
+                container.style.transform = 'scale(1)';
+                zoomLevel.innerText = "100%";
+            }}
+            
+            // --- Custom Pan Engine ---
+            let isDown = false;
+            let startX, startY, scrollLeft, scrollTop;
+            
+            wrapper.addEventListener('mousedown', (e) => {{
+                isDown = true;
+                startX = e.pageX - wrapper.offsetLeft; startY = e.pageY - wrapper.offsetTop;
+                scrollLeft = wrapper.scrollLeft; scrollTop = wrapper.scrollTop;
+            }});
+            wrapper.addEventListener('mouseleave', () => {{ isDown = false; }});
+            wrapper.addEventListener('mouseup', () => {{ isDown = false; }});
+            wrapper.addEventListener('mousemove', (e) => {{
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - wrapper.offsetLeft; const y = e.pageY - wrapper.offsetTop;
+                wrapper.scrollLeft = scrollLeft - (x - startX) * 1.5; 
+                wrapper.scrollTop = scrollTop - (y - startY) * 1.5;
+            }});
+            
+            wrapper.addEventListener('touchstart', (e) => {{
+                isDown = true;
+                startX = e.touches[0].pageX - wrapper.offsetLeft; startY = e.touches[0].pageY - wrapper.offsetTop;
+                scrollLeft = wrapper.scrollLeft; scrollTop = wrapper.scrollTop;
+            }});
+            wrapper.addEventListener('touchend', () => {{ isDown = false; }});
+            wrapper.addEventListener('touchmove', (e) => {{
+                if (!isDown) return;
+                e.preventDefault(); 
+                const x = e.touches[0].pageX - wrapper.offsetLeft; const y = e.touches[0].pageY - wrapper.offsetTop;
+                wrapper.scrollLeft = scrollLeft - (x - startX) * 1.5;
+                wrapper.scrollTop = scrollTop - (y - startY) * 1.5;
+            }}, {{ passive: false }});
         </script>
     </body>
     </html>
     """
-    components.html(html_content, height=450)
+    components.html(html_content, height=600)
     inject_theme_sync_js()
     return dot

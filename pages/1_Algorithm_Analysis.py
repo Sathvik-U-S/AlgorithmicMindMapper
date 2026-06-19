@@ -70,7 +70,7 @@ if st.session_state.current_analysis:
     col_viz, col_text = st.columns([1.2, 1])
     with col_viz:
         st.markdown("#### :material/schema: Architectural Flowchart Blueprint")
-        st.caption(":material/zoom_in: Use the toolbar buttons inside the diagram to zoom in. You can drag or swipe to explore large graphs.")
+        st.caption(":material/zoom_in: Use the toolbar to zoom in and out. Drag or swipe directly on the background to pan.")
         with st.container(border=True):
             dot_flow = render_graphviz(data.get("graphviz_flowchart"), "#00FFAA", "TD")
     with col_text:
@@ -83,7 +83,7 @@ if st.session_state.current_analysis:
     c_trace, c_stack = st.columns([1.2, 1])
     with c_trace:
         st.markdown("**Visual Execution Memory Trace**")
-        st.caption(":material/pan_tool: Swipe directly on the diagram below to navigate through execution states.")
+        st.caption(":material/pan_tool: Click/Drag to pan around the execution nodes. Use toolbar to scale.")
         with st.container(border=True):
             dot_trace = render_graphviz(data.get("graphviz_trace"), "#0099FF", "TD")
     
