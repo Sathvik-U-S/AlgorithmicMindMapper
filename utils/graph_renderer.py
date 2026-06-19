@@ -78,25 +78,25 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
 
     try:
         raw_svg = dot.pipe(format='svg').decode('utf-8')
-        # CRITICAL FIX: Strip hardcoded width/height so the zoom library can scale it!
+        # CRITICAL FIX: Strip hardcoded width/height so the custom zoom engine can dynamically scale it
         raw_svg = re.sub(r'(<svg[^>]*)(width="[^"]*")(.*?)', r'\1\3', raw_svg)
         raw_svg = re.sub(r'(<svg[^>]*)(height="[^"]*")(.*?)', r'\1\3', raw_svg)
-        raw_svg = raw_svg.replace('<svg', '<svg id="scalable-svg" style="width:100%; height:100%; touch-action:none;"')
+        raw_svg = raw_svg.replace('<svg', '<svg style="width:100%; height:100%; touch-action:none;"')
     except Exception:
         st.graphviz_chart(dot)
         return dot
 
+    # Pure Vanilla JS Multi-Touch Pan & Zoom Engine
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
-        <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
         <style>
             body, html {{ margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }}
-            #svg-container {{ width: 100%; height: 100%; position: relative; }}
-            svg {{ cursor: grab; }}
-            svg:active {{ cursor: grabbing; }}
+            #wrapper {{ width: 100%; height: 100%; position: relative; cursor: grab; }}
+            #wrapper:active {{ cursor: grabbing; }}
+            #zoom-layer {{ transform-origin: center; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; transition: transform 0.05s linear; }}
             
             .toolbar {{ position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; z-index: 100; }}
             .tool-btn {{
@@ -113,20 +113,66 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
         </style>
     </head>
     <body>
-        <div id="svg-container">
+        <div id="wrapper">
             <div class="toolbar">
-                <button class="tool-btn" onclick="panZoom.zoomIn()"><span class="material-symbols-rounded">add</span></button>
-                <button class="tool-btn" onclick="panZoom.zoomOut()"><span class="material-symbols-rounded">remove</span></button>
-                <button class="tool-btn" onclick="panZoom.resetZoom(); panZoom.center();"><span class="material-symbols-rounded">refresh</span></button>
+                <button class="tool-btn" onclick="zoomIn()"><span class="material-symbols-rounded">zoom_in</span></button>
+                <button class="tool-btn" onclick="zoomOut()"><span class="material-symbols-rounded">zoom_out</span></button>
+                <button class="tool-btn" onclick="resetZoom()"><span class="material-symbols-rounded">fit_screen</span></button>
             </div>
-            {raw_svg}
+            <div id="zoom-layer">
+                {raw_svg}
+            </div>
         </div>
         
         <script>
-            var panZoom = svgPanZoom('#scalable-svg', {{
-                zoomEnabled: true, controlIconsEnabled: false, fit: true, center: true, minZoom: 0.5, maxZoom: 10
-            }});
+            const wrapper = document.getElementById('wrapper');
+            const layer = document.getElementById('zoom-layer');
+            let scale = 1, x = 0, y = 0;
+            let isDragging = false, startX, startY;
+            let initPinch = null, initScale = 1;
+
+            const update = () => layer.style.transform = `translate(${{x}}px, ${{y}}px) scale(${{scale}})`;
+
+            // Mouse panning
+            wrapper.addEventListener('mousedown', e => {{ isDragging = true; startX = e.clientX - x; startY = e.clientY - y; }});
+            window.addEventListener('mouseup', () => isDragging = false);
+            window.addEventListener('mousemove', e => {{ if (!isDragging) return; x = e.clientX - startX; y = e.clientY - startY; update(); }});
+
+            // Wheel zooming
+            wrapper.addEventListener('wheel', e => {{ e.preventDefault(); scale *= e.deltaY > 0 ? 0.9 : 1.1; update(); }}, {{passive: false}});
+
+            // Mobile Touch Panning & Pinch-to-Zoom
+            wrapper.addEventListener('touchstart', e => {{
+                if (e.touches.length === 1) {{
+                    isDragging = true; startX = e.touches[0].clientX - x; startY = e.touches[0].clientY - y;
+                }} else if (e.touches.length === 2) {{
+                    isDragging = false;
+                    initPinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    initScale = scale;
+                }}
+            }}, {{passive: false}});
             
+            wrapper.addEventListener('touchmove', e => {{
+                e.preventDefault();
+                if (e.touches.length === 1 && isDragging) {{
+                    x = e.touches[0].clientX - startX; y = e.touches[0].clientY - startY; update();
+                }} else if (e.touches.length === 2 && initPinch) {{
+                    const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+                    scale = initScale * (dist / initPinch); update();
+                }}
+            }}, {{passive: false}});
+            
+            wrapper.addEventListener('touchend', e => {{
+                if (e.touches.length < 2) initPinch = null;
+                if (e.touches.length === 0) isDragging = false;
+            }});
+
+            // Toolbar functions
+            function zoomIn() {{ scale *= 1.2; update(); }}
+            function zoomOut() {{ scale /= 1.2; update(); }}
+            function resetZoom() {{ scale = 1; x = 0; y = 0; update(); }}
+
+            // Theme Sync Module
             function syncTheme() {{
                 try {{
                     const parentDoc = window.parent.document;
@@ -139,11 +185,7 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
                     const isLight = brightness > 128;
                     
                     let styleEl = document.getElementById('dynamic-theme');
-                    if (!styleEl) {{
-                        styleEl = document.createElement('style');
-                        styleEl.id = 'dynamic-theme';
-                        document.head.appendChild(styleEl);
-                    }}
+                    if (!styleEl) {{ styleEl = document.createElement('style'); styleEl.id = 'dynamic-theme'; document.head.appendChild(styleEl); }}
                     
                     if (isLight) {{
                         let primary = "{theme_color}" === "#00FFAA" ? "#FF007F" : "#0099FF";
@@ -157,8 +199,7 @@ def render_graphviz(graph_data, theme_color="#00FFAA", layout="TD"):
                     }} else {{ styleEl.innerHTML = ''; }}
                 }} catch (e) {{}}
             }}
-            syncTheme();
-            setInterval(syncTheme, 500);
+            syncTheme(); setInterval(syncTheme, 500);
         </script>
     </body>
     </html>

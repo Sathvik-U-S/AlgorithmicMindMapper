@@ -9,7 +9,6 @@ from database import save_user_state, get_user_state
 
 st.set_page_config(page_title="DSA Visualizer", layout="wide")
 
-# CSS to ensure the main page never scrolls horizontally, but allows custom table containers to do so.
 st.html("""
 <style>
 body, .stApp { overflow-x: hidden !important; }
@@ -70,6 +69,7 @@ if st.session_state.current_analysis:
     col_viz, col_text = st.columns([1.2, 1])
     with col_viz:
         st.markdown("#### :material/schema: Architectural Flowchart Blueprint")
+        st.info("Use two fingers to pinch & zoom, or drag to pan around. Click the toolbar icons to reset view.", icon=":material/pinch:")
         with st.container(border=True):
             dot_flow = render_graphviz(data.get("graphviz_flowchart"), "#00FFAA", "TD")
     with col_text:
@@ -82,10 +82,10 @@ if st.session_state.current_analysis:
     c_trace, c_stack = st.columns([1.2, 1])
     with c_trace:
         st.markdown("**Visual Execution Memory Trace**")
+        st.info("Interactive view: Drag to explore wide mapping trees or pinch to zoom in on specific nodes.", icon=":material/drag_pan:")
         with st.container(border=True):
             dot_trace = render_graphviz(data.get("graphviz_trace"), "#0099FF", "TD")
     
-    # CRITICAL FIX: Wrapped the table inside the dedicated scrolling window div
     table_md = data.get("execution_trace_table", "")
     st.markdown(f'<div class="scrollable-table-window">\n\n{table_md}\n\n</div>', unsafe_allow_html=True)
     
@@ -93,12 +93,12 @@ if st.session_state.current_analysis:
         st.markdown("**Recursive Frame Inspector**")
         call_stack = data.get("call_stack", [])
         if call_stack:
-            st.caption(":material/swipe: **Interactive Timeline:** Drag the slider below to step forward and backward through the recursive execution frames.")
+            st.info("Slide the dot below left or right to step through the execution timeline dynamically.", icon=":material/linear_scale:")
             step = st.slider("Execution Timeline Iteration", 0, len(call_stack)-1, 0, label_visibility="collapsed")
             current_frame = call_stack[step]
             
             st.markdown(f"#### :material/play_circle: {current_frame.get('step_name', 'System Action')}")
-            st.info(current_frame.get('explanation', 'Resolving system operational state...'), icon=":material/info:")
+            st.caption(current_frame.get('explanation', 'Resolving system operational state...'))
             
             stack_items = current_frame.get('stack', [])
             if not stack_items:
