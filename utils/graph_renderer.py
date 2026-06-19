@@ -3,7 +3,6 @@ import streamlit.components.v1 as components
 from graphviz import Digraph
 
 def inject_theme_sync_js():
-    """Invisible JS using the safe components.html iframe to perfectly convert SVG and HTML colors for Light Mode."""
     js_code = """
     <script>
         (function() {
@@ -31,28 +30,30 @@ def inject_theme_sync_js():
                     
                     if (isLight) {
                         styleEl.innerHTML = `
-                            /* Flowchart SVG Colors (Light Mode) */
+                            /* QoL FIX: Enable Mobile Pinch-to-Zoom for SVG Maps */
+                            .stGraphVizChart { overflow: auto; -webkit-overflow-scrolling: touch; }
+                            .stGraphVizChart svg { max-width: 100%; height: auto; touch-action: pan-x pan-y pinch-zoom !important; }
+                            
                             .stGraphVizChart svg path[fill="#161B22" i], 
                             .stGraphVizChart svg polygon[fill="#161B22" i] { fill: #F0F2F6 !important; }
-                            
                             .stGraphVizChart svg text { fill: #31333F !important; font-weight: bold !important; }
-                            
                             .stGraphVizChart svg path[stroke="#00FFAA" i], 
                             .stGraphVizChart svg polygon[stroke="#00FFAA" i] { stroke: #FF007F !important; }
                             .stGraphVizChart svg polygon[fill="#00FFAA" i] { fill: #FF007F !important; }
-                            
                             .stGraphVizChart svg path[stroke="#0099FF" i], 
                             .stGraphVizChart svg polygon[stroke="#0099FF" i] { stroke: #0099FF !important; }
                             .stGraphVizChart svg polygon[fill="#0099FF" i] { fill: #0099FF !important; }
                             
-                            /* Recursive Frame Inspector: Neon Pink Light Mode */
                             .cyber-box { background-color: #FFFFFF !important; border: 2px solid #FF007F !important; box-shadow: 0 0 10px rgba(255, 0, 127, 0.15) !important; }
                             .cyber-title { color: #31333F !important; font-weight: 800 !important; }
                             .cyber-text { color: #555555 !important; }
                         `;
                     } else {
                         styleEl.innerHTML = `
-                            /* Recursive Frame Inspector: Cyber-Dark Neon Blue/Green Theme */
+                            /* QoL FIX: Enable Mobile Pinch-to-Zoom for SVG Maps */
+                            .stGraphVizChart { overflow: auto; -webkit-overflow-scrolling: touch; }
+                            .stGraphVizChart svg { max-width: 100%; height: auto; touch-action: pan-x pan-y pinch-zoom !important; }
+                        
                             .cyber-box { background-color: #161B22 !important; border: 2px solid #0099FF !important; box-shadow: 0 0 10px rgba(0, 153, 255, 0.2) !important; }
                             .cyber-title { color: #00FFAA !important; font-weight: 800 !important; }
                             .cyber-text { color: #E6EDF3 !important; }

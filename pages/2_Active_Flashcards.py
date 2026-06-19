@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import streamlit.components.v1 as components
-from database import get_user_state
+from database import get_user_state, get_flashcard_state, save_flashcard_state
 from utils.ai_engine import generate_flashcards
 
 st.set_page_config(page_title="Active Flashcards", layout="centered")
@@ -19,24 +19,34 @@ if not saved_state or not saved_state.get("algo_name"):
 algo_name = saved_state["algo_name"]
 algo_context = saved_state["ai_data"].get("explanation", algo_name)
 
-# Truncate long code blocks for the UI Display
+# QoL: Attempt to load persistent flashcard session from DB
+fc_state = get_flashcard_state(st.session_state.user_id)
+if fc_state and fc_state.get("algo_name") == algo_name:
+    if "flashcards" not in st.session_state:
+        st.session_state.flashcards = fc_state["cards_data"]
+        st.session_state.flashcard_algo = algo_name
+        st.session_state.card_idx = fc_state["card_idx"]
+        st.session_state.flash_stats = fc_state["stats"]
+
 display_name = algo_name[:37] + "..." if len(algo_name) > 40 else algo_name
 
 st.markdown(f"### :material/style: Active-Recall Deck: :green[{display_name}]")
 
-# 1. Base CSS (Cyber-Dark Default)
+# QoL CSS FIX: Tap-to-flip (Checkbox hack), un-selectable text, and normal inline flow block for bold words.
 st.html("""
 <style>
-.flip-card { background-color: transparent; width: 100%; height: 250px; perspective: 1000px; margin-bottom: 20px; cursor: pointer; }
-.flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.6s; transform-style: preserve-3d; }
-.flip-card:active .flip-card-inner { transform: rotateY(180deg); }
-.flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; padding: 20px; border-radius: 12px; border: 2px solid #00FFAA; box-sizing: border-box; }
+.flip-card { display: block; background-color: transparent; width: 100%; height: 260px; perspective: 1000px; margin-bottom: 20px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
+.flip-card input[type="checkbox"] { display: none; }
+.flip-card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.5s cubic-bezier(0.4, 0.2, 0.2, 1); transform-style: preserve-3d; }
+.flip-card input[type="checkbox"]:checked ~ .flip-card-inner { transform: rotateY(180deg); }
+.flip-card-front, .flip-card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; align-items: center; justify-content: center; padding: 25px; border-radius: 12px; border: 2px solid #00FFAA; box-sizing: border-box; }
 .flip-card-front { background-color: #161B22; color: #E6EDF3; font-size: 1.2rem; font-weight: bold; }
-.flip-card-back { background-color: #00FFAA; color: #0D1117; transform: rotateY(180deg); font-size: 1.1rem; line-height: 1.5; overflow-y: auto; }
+.flip-card-back { background-color: #00FFAA; color: #0D1117; transform: rotateY(180deg); font-size: 1.1rem; line-height: 1.6; overflow-y: auto; }
+/* Isolates text layout so bolding does not break flexbox rows */
+.flip-card-text-wrapper { display: block; width: 100%; text-align: center; }
 </style>
 """)
 
-# 2. Dynamic Theme Watcher (Uses the exact same working logic as your Flowcharts)
 js_code = """
 <script>
     (function() {
@@ -44,7 +54,6 @@ js_code = """
             try {
                 const parentDoc = window.parent.document;
                 if (!parentDoc) return;
-                
                 const appDiv = parentDoc.querySelector('.stApp') || parentDoc.body;
                 if (!appDiv) return;
                 
@@ -64,12 +73,11 @@ js_code = """
                 
                 if (isLight) {
                     styleEl.innerHTML = `
-                        /* Flip to Light Mode styling with Pink accents */
                         .flip-card-front { background-color: #F0F2F6 !important; color: #31333F !important; border-color: #FF007F !important; }
                         .flip-card-back { background-color: #FF007F !important; color: #FFFFFF !important; border-color: #FF007F !important; }
                     `;
                 } else {
-                    styleEl.innerHTML = ''; // Restores default Cyber-Dark
+                    styleEl.innerHTML = ''; 
                 }
             } catch (e) {}
         }
@@ -88,6 +96,7 @@ if "flashcards" not in st.session_state or st.session_state.get("flashcard_algo"
             st.session_state.flashcard_algo = algo_name
             st.session_state.card_idx = 0
             st.session_state.flash_stats = {"Hard": 0, "Good": 0, "Easy": 0}
+            save_flashcard_state(st.session_state.user_id, algo_name, st.session_state.flashcards, st.session_state.flash_stats, 0)
             st.rerun()
 
 if st.session_state.get("flashcards"):
@@ -96,9 +105,8 @@ if st.session_state.get("flashcards"):
     
     if idx >= len(cards):
         st.balloons()
-        st.success("🎉 You've completed the deck!", icon=":material/celebration:")
+        st.success("You've completed the deck!", icon=":material/celebration:")
         
-        # --- FLASHCARD SESSION ANALYTICS REPORT ---
         st.markdown("#### :material/analytics: Session Performance Report")
         stats = st.session_state.flash_stats
         
@@ -108,44 +116,48 @@ if st.session_state.get("flashcards"):
         c3.metric("Easy Ratings", stats["Easy"])
         
         df = pd.DataFrame({"Rating": list(stats.keys()), "Count": list(stats.values())})
-        
-        # REMOVED template="plotly_dark" so Streamlit natively auto-themes the font colors!
         fig = px.pie(df, values='Count', names='Rating', color='Rating', 
                      color_discrete_map={"Hard": "#ff4b4b", "Good": "#0099ff", "Easy": "#00FFAA"},
                      hole=0.4)
         
-        # Enforce transparent backgrounds so it never clashes with the UI 
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         st.plotly_chart(fig, width='stretch')
         
         if st.button("Restart Deck", icon=":material/restart_alt:", type="primary", width='stretch'):
             st.session_state.card_idx = 0
             st.session_state.flash_stats = {"Hard": 0, "Good": 0, "Easy": 0}
+            save_flashcard_state(st.session_state.user_id, algo_name, st.session_state.flashcards, st.session_state.flash_stats, 0)
             st.rerun()
     else:
         st.progress((idx) / len(cards), text=f"Card {idx+1} of {len(cards)}")
-        st.markdown("*(Click and hold a card to reveal the answer)*")
+        st.caption("*(Tap the card to reveal the technical explanation)*")
         
         card = cards[idx]
+        # QoL FIX: Pure CSS click-to-flip with checkbox logic, text wrapped in <div class="flip-card-text-wrapper">
         card_html = f"""
-        <div class="flip-card"><div class="flip-card-inner">
-            <div class="flip-card-front">Q: {card.get('front', 'Question')}</div>
-            <div class="flip-card-back">{card.get('back', 'Answer')}</div>
-        </div></div>
+        <label class="flip-card">
+            <input type="checkbox">
+            <div class="flip-card-inner">
+                <div class="flip-card-front"><div class="flip-card-text-wrapper">Q: {card.get('front', 'Question')}</div></div>
+                <div class="flip-card-back"><div class="flip-card-text-wrapper">{card.get('back', 'Answer')}</div></div>
+            </div>
+        </label>
         """
         st.html(card_html)
         
-        # Record Stats and Advance
         c1, c2, c3 = st.columns(3)
         if c1.button("Hard :material/sentiment_dissatisfied:", width='stretch'):
             st.session_state.flash_stats["Hard"] += 1
             st.session_state.card_idx += 1
+            save_flashcard_state(st.session_state.user_id, algo_name, st.session_state.flashcards, st.session_state.flash_stats, st.session_state.card_idx)
             st.rerun()
         if c2.button("Good :material/sentiment_satisfied:", width='stretch'):
             st.session_state.flash_stats["Good"] += 1
             st.session_state.card_idx += 1
+            save_flashcard_state(st.session_state.user_id, algo_name, st.session_state.flashcards, st.session_state.flash_stats, st.session_state.card_idx)
             st.rerun()
         if c3.button("Easy :material/sentiment_very_satisfied:", width='stretch'):
             st.session_state.flash_stats["Easy"] += 1
             st.session_state.card_idx += 1
+            save_flashcard_state(st.session_state.user_id, algo_name, st.session_state.flashcards, st.session_state.flash_stats, st.session_state.card_idx)
             st.rerun()

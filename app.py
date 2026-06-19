@@ -6,12 +6,17 @@ st.set_page_config(page_title="Profile - Algorithmic Mind-Mapper", layout="wide"
 
 init_db()
 
+# QoL FIX: Replaced 'nowrap' with 'normal' so table stays in bounds. Added smooth scroll.
 st.html("""
 <style>
+html { scroll-behavior: smooth; }
 [data-testid="stMarkdownContainer"] table {
     display: block !important;
     overflow-x: auto !important;
-    white-space: nowrap !important;
+    white-space: normal !important; 
+    word-wrap: break-word !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
 }
 </style>
 """)
@@ -46,7 +51,6 @@ st.markdown("---")
 st.subheader(":material/bookmark: Your Persistent Access Link")
 st.info("Bookmark this exact URL. It will instantly restore your profile, API keys, and your last active execution trace across any device without a login portal:", icon=":material/info:")
 
-# Production URL matched to your deployed application space
 current_url = "https://algorithmicmindmappergit-h6bhwlhiqz5frnpksslcea.streamlit.app" 
 personal_link = f"{current_url}/?user_id={st.session_state.user_id}"
 
@@ -57,8 +61,9 @@ st.subheader(":material/delete: Storage Management")
 st.warning("Executing a data reset will permanently purge your stored configurations and trace history from this environment.", icon=":material/warning:")
 if st.button("Purge Local Data", icon=":material/restart_alt:"):
     save_user_data(st.session_state.user_id, "", "")
-    from database import save_user_state
+    from database import save_user_state, save_flashcard_state
     save_user_state(st.session_state.user_id, "", {}, [])
+    save_flashcard_state(st.session_state.user_id, "", [], {"Hard": 0, "Good": 0, "Easy": 0}, 0)
     st.session_state.profile_name = ""
     st.session_state.api_key = ""
     st.success("Workspace environment successfully purged.", icon=":material/check:")

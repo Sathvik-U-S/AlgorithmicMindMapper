@@ -71,7 +71,9 @@ if st.session_state.current_analysis:
         st.markdown("**Recursive Frame Inspector**")
         call_stack = data.get("call_stack", [])
         if call_stack:
-            step = st.slider("Execution Timeline Iteration", 0, len(call_stack)-1, 0)
+            # QoL FIX: Added user instructions for sliding mechanic
+            st.caption("👉 **Interactive Timeline:** Drag the slider below to step forward and backward through the recursive execution frames.")
+            step = st.slider("Execution Timeline Iteration", 0, len(call_stack)-1, 0, label_visibility="collapsed")
             current_frame = call_stack[step]
             
             st.markdown(f"#### :material/play_circle: {current_frame.get('step_name', 'System Action')}")
@@ -88,7 +90,6 @@ if st.session_state.current_analysis:
                     else:
                         f_name, f_det = str(frame), ""
                     
-                    # Core Fix: Cleaned inline styles so the Neon CSS perfectly styles the boxes!
                     st.markdown(f"""
                     <div class='cyber-box' style='padding:12px; margin-bottom:12px; border-radius:8px; text-align:center;'>
                         <div class='cyber-title' style='font-family:monospace; font-size: 1.1em;'>{f_name}</div>
@@ -105,6 +106,8 @@ if st.session_state.current_analysis:
     fig_bar = None
     st.markdown("##### Space-Time Structural Profile")
     if tradeoffs:
+        # QoL FIX: Added reset instructions for the chart
+        st.caption("💡 *Tip: Double-tap or double-click anywhere on the chart to reset the zoom/view.*")
         df_bar = pd.DataFrame({"Metric": list(tradeoffs.keys()), "Score": list(tradeoffs.values())})
         fig_bar = px.bar(df_bar, x="Score", y="Metric", orientation='h', template="plotly_dark", color="Score", color_continuous_scale="Tealgrn")
         fig_bar.update_layout(
