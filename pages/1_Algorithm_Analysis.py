@@ -11,7 +11,7 @@ st.set_page_config(page_title="DSA Visualizer", layout="wide")
 
 st.html("""
 <style>
-body, .stApp { overflow-x: hidden !important; width: 100vw; max-width: 100vw; }
+/* Stable Table Width Container */
 .scrollable-table-window {
     width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
     border: 1px solid rgba(128, 128, 128, 0.2); border-radius: 8px; padding: 10px; margin-bottom: 20px;
@@ -57,7 +57,6 @@ if st.session_state.current_analysis:
     col_viz, col_text = st.columns([1.2, 1])
     with col_viz:
         st.markdown("#### :material/schema: Architectural Flowchart Blueprint")
-        st.caption(":material/zoom_in: Use the buttons above the graph to zoom. Swipe/drag to pan.")
         with st.container(border=True):
             dot_flow = render_graphviz(data.get("graphviz_flowchart"), "#00FFAA", "TD")
     with col_text:
@@ -70,10 +69,13 @@ if st.session_state.current_analysis:
     c_trace, c_stack = st.columns([1.2, 1])
     with c_trace:
         st.markdown("**Visual Execution Memory Trace**")
-        st.caption(":material/pan_tool: Click/Drag to pan around the execution nodes. Use toolbar to scale.")
         with st.container(border=True):
             dot_trace = render_graphviz(data.get("graphviz_trace"), "#0099FF", "TD")
     
+    st.markdown("**Execution Trace Timeline**")
+    st.caption(":material/swipe_right: Swipe left or right inside the box below to view the complete table.")
+    
+    # Stable Implementation of Horizontal Scroll Table
     table_md = data.get("execution_trace_table", "")
     st.markdown(f'<div class="scrollable-table-window">\n\n{table_md}\n\n</div>', unsafe_allow_html=True)
     
@@ -81,7 +83,7 @@ if st.session_state.current_analysis:
         st.markdown("**Recursive Frame Inspector**")
         call_stack = data.get("call_stack", [])
         if call_stack:
-            st.caption(":material/swipe: **Interactive Timeline:** Drag the slider below to step forward and backward through the recursive execution frames.")
+            st.caption(":material/linear_scale: **Interactive Timeline:** Drag the slider below to step forward and backward through the frames.")
             step = st.slider("Execution Timeline Iteration", 0, len(call_stack)-1, 0, label_visibility="collapsed")
             current_frame = call_stack[step]
             
@@ -115,7 +117,6 @@ if st.session_state.current_analysis:
     fig_bar = None
     st.markdown("##### Space-Time Structural Profile")
     if tradeoffs:
-        st.caption(":material/touch_app: *Tip: Double-tap or double-click anywhere on the chart to reset the zoom/view.*")
         df_bar = pd.DataFrame({"Metric": list(tradeoffs.keys()), "Score": list(tradeoffs.values())})
         fig_bar = px.bar(df_bar, x="Score", y="Metric", orientation='h', template="plotly_dark", color="Score", color_continuous_scale="Tealgrn")
         fig_bar.update_layout(width=750, height=350, xaxis=dict(range=[0, 10]), margin=dict(l=150, r=20, t=30, b=20), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#E6EDF3", size=13))
@@ -154,7 +155,6 @@ if st.session_state.current_analysis:
             if isinstance(content, dict):
                 st.write(content.get("text", ""))
                 if content.get("graphviz_code"):
-                    # CRITICAL FIX: The Tutor Followup graphs now use the Zoom Component too!
                     render_raw_dot(content["graphviz_code"], "#FF007F")
             else:
                 st.write(content)

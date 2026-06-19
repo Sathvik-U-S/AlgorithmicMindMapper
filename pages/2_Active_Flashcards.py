@@ -31,7 +31,6 @@ display_name = algo_name[:37] + "..." if len(algo_name) > 40 else algo_name
 
 st.markdown(f"### :material/style: Active-Recall Deck: {display_name}")
 
-# CRITICAL FIX: explicit `display: block` on the back of the card forces text to the top!
 st.html("""
 <style>
 .flip-card { display: block; background-color: transparent; width: 100%; height: 280px; perspective: 1000px; margin-bottom: 20px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -47,6 +46,7 @@ st.html("""
     background-color: #161B22; color: #E6EDF3; font-size: 1.2rem; font-weight: bold; 
     display: flex; align-items: center; justify-content: center; text-align: center; padding: 25px;
 }
+/* Stable fix: block layout prevents long text from clipping at the top */
 .flip-card-back { 
     background-color: #00FFAA; color: #0D1117; transform: rotateY(180deg); 
     font-size: 1.1rem; line-height: 1.6; 
