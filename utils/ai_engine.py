@@ -78,21 +78,34 @@ def generate_flashcards(algo_context, api_key, model="gemini-2.5-flash"):
     return json.loads(clean, strict=False)
 
 def answer_followup(question, context_data, api_key, model="gemini-2.5-flash"):
-    client = genai.Client(api_key=api_key)
-    prompt = f"""
-    Context: {context_data}
-    Student asks: {question}
-    
-    Provide a concise, direct answer in plain text. NO STREAMLIT COLORS.
-    If the user asks to draw or trace a graph/flowchart, provide clean, basic Graphviz DOT syntax. 
-    
-    Return ONLY valid JSON in this format:
-    {{
-        "text": "Your plain-text response here.",
-        "graphviz_code": "digraph G {{ ... }}" 
-    }}
-    """
-    response = client.models.generate_content(model=model, contents=prompt)
-    clean = re.sub(r'^```json\s*|\s*```$', '', response.text.strip(), flags=re.MULTILINE)
-    try: return json.loads(clean, strict=False)
-    except Exception: return {"text": response.text, "graphviz_code": ""}
+    # CRITICAL FIX: Wrapped the API call in a try-except block so Google server errors 
+    # don't crash the Streamlit app.
+    try:
+        client = genai.Client(api_key=api_key)
+        prompt = f"""
+        Context: {context_data}
+        Student asks: {question}
+        
+        Provide a concise, direct answer in plain text. NO STREAMLIT COLORS.
+        If the user asks to draw or trace a graph/flowchart, provide clean, basic Graphviz DOT syntax. 
+        
+        Return ONLY valid JSON in this format:
+        {{
+            "text": "Your plain-text response here.",
+            "graphviz_code": "digraph G {{ ... }}" 
+        }}
+        """
+        response = client.models.generate_content(model=model, contents=prompt)
+        clean = re.sub(r'^```json\s*|\s*```$', '', response.text.strip(), flags=re.MULTILINE)
+        
+        try: 
+            return json.loads(clean, strict=False)
+        except Exception: 
+            return {"text": response.text, "graphviz_code": ""}
+            
+    except Exception as e:
+        # If Google Gemini throws a 500 Server Error, return a safe fallback message
+        return {
+            "text": "⚠️ **API Connection Error:** The Google Gemini API encountered a server timeout or safety block. Please try asking your question again.",
+            "graphviz_code": ""
+        }
