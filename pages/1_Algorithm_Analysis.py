@@ -167,3 +167,26 @@ if st.session_state.current_analysis:
         st.session_state.qna.append({"role": "tutor", "content": ans_payload})
         save_user_state(st.session_state.user_id, st.session_state.current_algo, st.session_state.current_analysis, st.session_state.qna)
         st.rerun()
+
+    # --- NEW: Stable Conversation Transcript Download ---
+    if st.session_state.qna:
+        chat_transcript = f"# Interactive Tutor Transcript: {safe_name}\n\n"
+        for msg in st.session_state.qna:
+            role_header = "**User:**" if msg["role"] == "user" else "**AI Tutor:**"
+            content = msg["content"]
+            if isinstance(content, dict):
+                chat_transcript += f"{role_header}\n{content.get('text', '')}\n\n"
+                if content.get("graphviz_code"):
+                    chat_transcript += "*(AI generated a custom Graphviz flowchart here)*\n\n"
+            else:
+                chat_transcript += f"{role_header}\n{content}\n\n"
+        
+        st.download_button(
+            label="Download Conversation Transcript (.md)", 
+            data=chat_transcript, 
+            file_name=f"{safe_name}_Chat_Transcript.md", 
+            mime="text/markdown", 
+            type="secondary", 
+            icon=":material/download:", 
+            width='stretch'
+        )
